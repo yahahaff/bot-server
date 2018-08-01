@@ -1,0 +1,80 @@
+/usr/bin/python
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import datetime
+from urllib import request, parse
+import json
+from jinja2 import Template
+import sys
+import ssl
+
+token = '**********************'
+chat_id = '*********'
+
+with open('/etc/template.html') as file_:
+    template = Template(file_.read())
+
+
+# HTTPRequestHandler class
+class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
+
+    # GET
+    def do_POST(self):
+        # Send response status code
+
+        content_len = int(self.headers.get('content-length', 0))
+        if content_len <= 0:
+            self.send_response(400)
+            self.end_headers()
+            return
+
+        self.send_response(201)
+        # Send headers
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+
+        # Send message back to client
+        content_len = int(self.headers.get('content-length', 0))
+        post_body = self.rfile.read(content_len)
+        post_json = json.loads(post_body)
+        alert_name = post_json['alerts'][0]['labels']['alertname']
+        alert_time = str(datetime.datetime.strptime(post_json['alerts'][0]['startsAt'][0:19], "%Y-%m-%dT%H:%M:%S"))
+        alert_high = (post_json['alerts'][0]['labels']['severity']).upper()
+        alert_inst = post_json['alerts'][0]['labels']['instance']
+        alert_desc = post_json['alerts'][0]['annotations']['description']
+        # msg_chat = parse.quote(
+        #     "[{}] {} at {}\non {} \n{}".format(alert_high, alert_name, alert_time, alert_inst, alert_desc))
+        msg_chat = parse.quote(template.render(post_json))
+        msg_url = 'https://api.telegram.org/bot{}/sendMessage?parse_mode=HTML&chat_id={}&text={}'.format(token, chat_id,
+                                                                                                         msg_chat)
+
+        # This restores the same behavior as before.
+        context = ssl._create_unverified_context()
+        get = request.urlopen(msg_url, context=context).read()
+        # Write content as utf-8 data
+        self.wfile.write(post_body)
+        return
+
+
+def run():
+    print('start server...')
+    # args = sys.argv
+    # length = len(args)
+    # if (length >= 2):
+    #     global token
+    #     token = args[0]
+    #     global chat_id
+    #     chat_id = args[1]
+    # if (length == 3):
+    #     port = args[2]
+    # else:
+    #     port = 8088
+    # Server settings
+    # Choose port 8080, for port 80, which is normally used for a http server, you need root access
+    server_address = ('0.0.0.0', port)
+    httpd = HTTPServer(server_address, testHTTPServer_RequestHandler)
+    print('running server...')
+    httpd.serve_forever()
+
+
+if __name__ == '__main__':
+    run()
