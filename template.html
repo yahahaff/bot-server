@@ -1,0 +1,11 @@
+<b>[{{alerts|length}}] {{status.title()}}</b>
+{% for item in alerts %}
+<b>Labels</b>
+alertname = {{item.labels.alertname}}
+instance = {{item.labels.instance}}
+job = {{item.labels.job}}
+severity = {{item.labels.severity}}
+<b>Annotations</b>
+summary = {{item.annotations.summary}}
+description = {{item.annotations.description}}
+{% endfor %}
